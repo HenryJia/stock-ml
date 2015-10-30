@@ -12,25 +12,26 @@ from keras import optimizers
 from keras.models import Sequential
 from keras.layers.core import Dense, Dropout, Activation
 from keras.layers.embeddings import Embedding
-from keras.layers.recurrent import LSTM
+from keras.layers.recurrent import LSTM, SimpleRNN
 
 import matplotlib.pyplot as plt
 
 from get import get
 
+epsilon = 1
+
 n = 5
-days = 10
-batch_size = 10
-learning_rate = 1.0
+days = 20
+batch_size = 60
 decay_rate = 1e-6
-momentum = 0.95
-lstm1_units = 256
-lstm2_units = 512
-lstm3_units = 1024
+momentum = 0.99
+lstm1_units = 32
+lstm2_units = 32
+lstm3_units = 128
 dense_units = 512
 grad_clip = 100
 random.seed(0)
-epochs = 50
+epochs = 1000
 
 Symbols = []
 
@@ -61,61 +62,54 @@ def normalize_known(data, mean, std):
 def gen_data(data, m):
   length = data.shape[0] - m - 1
   x = np.zeros((length, m, 5))
-  y = np.zeros(length)
+  y = np.zeros((length, 5))
+  y_dir = np.zeros(length)
   for i in range(length):
     x[i] = data[i:(i + m)]
-    y[i] = data[(i + m), 3]
+    y[i] = data[(i + m)]
+    if (data[(i + m), 3] > data[(i + m - 1), 3]):
+        y_dir[i] = 1
     #y[i] = (data[(i + m), 3] - x_mean[3]) / x_std[3]
-  return x, y
-
-def read_model_data(model, filename):
-  """Unpickles and loads parameters into a Lasagne model."""
-  filename = os.path.join('./', '%s.%s' % (filename, param_extension))
-  with open(filename, 'r') as f:
-    data = cPickle.load(f)
-  lasagne.layers.set_all_param_values(model, data)
-
-
-def write_model_data(model, filename):
-  """Pickels the parameters within a Lasagne model."""
-  data = lasagne.layers.get_all_param_values(model)
-  filename = os.path.join('./', filename)
-  filename = '%s.%s' % (filename, param_extension)
-  with open(filename, 'w') as f:
-    cPickle.dump(data, f)
-
-
-def validate(data_validate):
-  pos_test = 0
-  testx, testy = gen_data_next(data_validate, days, pos_test, data_validate.shape[0] - days - 1)
-  overall_test_error = loss_fn(testx, testy)
-  #print 'Validation error ', overall_test_error
-  return overall_test_error
+  return x, y, y_dir
 
 print 'Generating Data...'
 data = get('stock_data_clean/KAZ_LDX.TXT', -1, 100)
-data_test = get('stock_data_clean/KAZ_LDX.TXT', 100, 1)
+data_test = get('stock_data_clean/KAZ_LDX.TXT', 200, 1)
 
 data_np = np.array(data)
 data_test_np = np.array(data_test)
 
-data_np, mean_np, std_np = normalize(data_np)
-data_test_np = normalize_known(data_test_np, mean_np, std_np)
+#for x in np.nditer(data_np):
+  #if (x <= 0):
+    #x = 1
 
-x, y = gen_data(data_np, days)
-x_test, y_test = gen_data(data_test_np, days)
+#for x in np.nditer(data_test_np):
+  #if (x <= 0):
+    #x = 1
+data_np[:, 4] += 1
+data_test_np[:, 4] += 1
+
+data_np = np.log(data_np)
+data_test_np = np.log(data_test_np)
+
+#data_np, mean_np, std_np = normalize(data_np)
+#data_test_np = normalize_known(data_test_np, mean_np, std_np)
+
+x, y, y_dir = gen_data(data_np, days)
+x_test, y_test, y_test_dir = gen_data(data_test_np, days)
 
 print 'Building Model...'
 model = Sequential()
-model.add(LSTM(n, lstm1_units, return_sequences=True))
-model.add(LSTM(lstm1_units, lstm2_units, return_sequences=True))
-model.add(LSTM(lstm2_units, lstm3_units, return_sequences=False))
-model.add(Dense(lstm3_units, dense_units))
-model.add(Dense(dense_units, 1))
-model.add(Activation("linear"))
-#sgd = optimizers.SGD(lr=learning_rate, decay=decay_rate, momentum=momentum, nesterov=False)
-#adagrad = optimizers.adagrad(lr=learning_rate)
-adadelta = optimizers.Adadelta(lr=learning_rate)
+model.add(LSTM(lstm1_units, return_sequences=False, input_shape=(days, n)))
+model.add(Dropout(0.5))
+#model.add(LSTM(lstm2_units, return_sequences=False))
+#model.add(Dropout(0.5))
+#model.add(LSTM(lstm3_units, return_sequences=False))
+#model.add(Dropout(0.5))
+model.add(Dense(5))
+sgd = optimizers.SGD(lr=0.1, decay=decay_rate, momentum=momentum, nesterov=True)
+adagrad = optimizers.adagrad(lr=0.1)
+adadelta = optimizers.Adadelta(lr=2.0)
 print 'Compiling...'
 model.compile(loss="mean_squared_error", optimizer='rmsprop')
 
@@ -124,16 +118,31 @@ model.compile(loss="mean_squared_error", optimizer='rmsprop')
   #model.load_weights('keras-weights.nn')
 print 'Begin Training...'
 model.fit(x, y, batch_size=batch_size, nb_epoch=epochs)#, validation_split=0.05)
-print 'Testing Model...'
-score = model.evaluate(x_test, y_test, batch_size=batch_size)
-print 'Test Score: ', score
-print 'Test Error: ', (math.sqrt(score) * std_np[3])
 print 'Saving Model...'
 model.save_weights('keras-weights.nn', overwrite=True)
-result = (model.predict(x_test, batch_size=batch_size, verbose=1) * std_np[3] + mean_np[3])
+#result = (model.predict(x_test, batch_size=batch_size, verbose=1) * std_np + mean_np)
+result = model.predict(x_test, batch_size=batch_size, verbose=1)
+print 'Testing Model...'
+score = model.evaluate(x_test, y_test, batch_size=batch_size, verbose=1, show_accuracy=True)
+print 'Test Score: ', score
+#print 'Test Error: ', (math.sqrt(score) * std_np[3])
+result_dir = np.zeros(result.shape[0])
+for i in range(len(result)):
+  if (result[i, 3] > x_test[i, -1, 3]):
+    result_dir[i] = 1
+
+
+wrong = 0
+for i in range(len(result)):
+  if (result_dir[i] != y_test_dir[i]):
+    wrong += 1
+
+percentage = wrong / float(len(result)) * 100
+print 'Test Direction Error: ', wrong, ' Out of ', len(result),  ' Percentage: ', percentage
 #for i in range(len(y_test)):
   #print 'Predictions: ', result[i] , ' Correct: ', (y_test[i] * std_np[3] + mean_np[3])
-plt.plot(result, 'bs')
-plt.plot((y_test * std_np[3] + mean_np[3]), 'r^')
+plt.plot(np.exp(result[:, 3]), 'bs')
+#plt.plot(np.exp(y_test[:, 3] * std_np[3] + mean_np[3]), 'r^')
+plt.plot(np.exp(y_test[:, 3]), 'r^')
 plt.show()
 print 'All Done :D'
