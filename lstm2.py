@@ -10,10 +10,10 @@ import theano.tensor as T
 
 from keras import optimizers
 from keras.models import Sequential
-from keras.layers.core import Dense, Dropout, Activation
+from keras.layers.core import Dense, Dropout, Activation, Reshape, Flatten
 from keras.layers.embeddings import Embedding
 from keras.layers.recurrent import LSTM, SimpleRNN
-
+from keras.layers.convolutional import Convolution2D
 import matplotlib.pyplot as plt
 
 from get import get
@@ -22,16 +22,14 @@ epsilon = 1
 
 n = 5
 days = 20
-batch_size = 60
-decay_rate = 1e-6
-momentum = 0.99
-lstm1_units = 32
-lstm2_units = 32
-lstm3_units = 128
+batch_size = 10
+lstm1_units = 256
+lstm2_units = 512
+lstm3_units = 1
 dense_units = 512
 grad_clip = 100
 random.seed(0)
-epochs = 1000
+epochs = 100
 
 Symbols = []
 
@@ -62,11 +60,11 @@ def normalize_known(data, mean, std):
 def gen_data(data, m):
   length = data.shape[0] - m - 1
   x = np.zeros((length, m, 5))
-  y = np.zeros((length, 5))
+  y = np.zeros((length, m, 5))
   y_dir = np.zeros(length)
   for i in range(length):
     x[i] = data[i:(i + m)]
-    y[i] = data[(i + m)]
+    y[i] = data[(i + 1):(i + m + 1)]
     if (data[(i + m), 3] > data[(i + m - 1), 3]):
         y_dir[i] = 1
     #y[i] = (data[(i + m), 3] - x_mean[3]) / x_std[3]
@@ -100,24 +98,31 @@ x_test, y_test, y_test_dir = gen_data(data_test_np, days)
 
 print 'Building Model...'
 model = Sequential()
-model.add(LSTM(lstm1_units, return_sequences=False, input_shape=(days, n)))
+#model.add(Reshape((1, days, n), input_shape=(days, n)))
+#model.add(Convolution2D(64, 5, 5))
+#model.add(Reshape((days - 5 + 1, 64)))
+model.add(LSTM(lstm1_units, return_sequences=True, activation='tanh', input_shape=(days, n)))
 model.add(Dropout(0.5))
-#model.add(LSTM(lstm2_units, return_sequences=False))
+model.add(LSTM(lstm2_units, return_sequences=True))
+model.add(Dropout(0.5))
+#model.add(LSTM(lstm3_units, return_sequences=True))
 #model.add(Dropout(0.5))
-#model.add(LSTM(lstm3_units, return_sequences=False))
-#model.add(Dropout(0.5))
-model.add(Dense(5))
-sgd = optimizers.SGD(lr=0.1, decay=decay_rate, momentum=momentum, nesterov=True)
+model.add(SimpleRNN(5, return_sequences=True, activation='linear'))
+sgd = optimizers.SGD(lr=0.1, decay=0, momentum=0.9, nesterov=True)
 adagrad = optimizers.adagrad(lr=0.1)
-adadelta = optimizers.Adadelta(lr=2.0)
+adadelta = optimizers.Adadelta(lr=1.0)
 print 'Compiling...'
-model.compile(loss="mean_squared_error", optimizer='rmsprop')
+model.compile(loss="mean_squared_error", optimizer=adadelta)
 
 #if os.path.isfile('keras-weights.nn'):
   #print 'Loading Model...'
   #model.load_weights('keras-weights.nn')
+print 'Testing Model...'
+score = model.evaluate(x_test, y_test, batch_size=batch_size, verbose=1, show_accuracy=True)
+print 'Test Score: ', score
+#print 'Test Error: ', (math.sq
 print 'Begin Training...'
-model.fit(x, y, batch_size=batch_size, nb_epoch=epochs)#, validation_split=0.05)
+model.fit(x, y, batch_size=batch_size, nb_epoch=epochs, validation_data=(x_test, y_test))#, validation_split=0.05)
 print 'Saving Model...'
 model.save_weights('keras-weights.nn', overwrite=True)
 #result = (model.predict(x_test, batch_size=batch_size, verbose=1) * std_np + mean_np)
@@ -128,7 +133,7 @@ print 'Test Score: ', score
 #print 'Test Error: ', (math.sqrt(score) * std_np[3])
 result_dir = np.zeros(result.shape[0])
 for i in range(len(result)):
-  if (result[i, 3] > x_test[i, -1, 3]):
+  if (result[i, -1, 3] > x_test[i, -1, 3]):
     result_dir[i] = 1
 
 
@@ -141,8 +146,8 @@ percentage = wrong / float(len(result)) * 100
 print 'Test Direction Error: ', wrong, ' Out of ', len(result),  ' Percentage: ', percentage
 #for i in range(len(y_test)):
   #print 'Predictions: ', result[i] , ' Correct: ', (y_test[i] * std_np[3] + mean_np[3])
-plt.plot(np.exp(result[:, 3]), 'bs')
+plt.plot(np.exp(result[:, -1, 3]), 'bs')
 #plt.plot(np.exp(y_test[:, 3] * std_np[3] + mean_np[3]), 'r^')
-plt.plot(np.exp(y_test[:, 3]), 'r^')
+plt.plot(np.exp(y_test[:, -1, 3]), 'r^')
 plt.show()
 print 'All Done :D'
