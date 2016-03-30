@@ -13,7 +13,7 @@ from keras import optimizers
 from keras.models import Sequential
 from keras.layers.core import Dense, Dropout, Activation, Reshape, Flatten
 from keras.layers.embeddings import Embedding
-from keras.layers.recurrent import LSTM, SimpleRNN, SimpleDeepRNN, JZS3
+from keras.layers.recurrent import LSTM, SimpleRNN
 from keras.layers.convolutional import Convolution2D
 import matplotlib.pyplot as plt
 from matplotlib.finance import candlestick2_ohlc
@@ -24,8 +24,8 @@ epsilon = 1
 
 n = 5
 batch_size = 100
-train_days = 30
-test_days = 30
+train_days = 150
+test_days = 150
 lstm1_units = 32
 lstm2_units = 32
 lstm3_units = 32
@@ -114,7 +114,7 @@ data_test_np = np.log(data_test_np)
 data_np, mean_np, std_np = normalize(data_np)
 data_test_np = normalize_known(data_test_np, mean_np, std_np)
 
-x, y, y_dir = gen_data(data_np, train_days, 0, True) # 3rd argument not ncesssary if true
+x, y, y_dir = gen_data(data_np, train_days, 1, False) # 3rd argument not ncesssary if true
 x_test, y_test, y_test_dir = gen_data(data_test_np, test_days, 1, False)
 print 'NaN Check x ', np.isnan(np.sum(x))
 print 'NaN Check y ', np.isnan(np.sum(y))
@@ -137,7 +137,7 @@ sgd = optimizers.SGD(lr=0.1, decay=0, momentum=0.9, nesterov=True)
 adagrad = optimizers.adagrad(lr=0.1)
 adadelta = optimizers.Adadelta(lr=1.0)
 print 'Compiling...'
-model.compile(loss="mean_squared_error", optimizer='rmsprop')
+model.compile(loss="mean_squared_error", optimizer='adam')
 
 #if os.path.isfile('keras-weights.nn'):
   #print 'Loading Model...'
@@ -183,23 +183,23 @@ f, axarr = plt.subplots(2, sharey=True)
 result_x = model.predict(x, batch_size=batch_size, verbose=1)
 recovered_result_x = np.exp(result_x[-100:, -1, :] * std_np[0:4] + mean_np[0:4])
 
-result_dir_x = np.zeros(result_x.shape[0])
-for i in range(len(result_x)):
-  if (result_x[i, -1, 3] > x[i, -1, 3]):
-    result_dir_x[i] = 1
+#result_dir_x = np.zeros(result_x.shape[0])
+#for i in range(len(result_x)):
+  #if (result_x[i, -1, 3] > x[i, -1, 3]):
+    #result_dir_x[i] = 1
 
 
-wrong = 0
-for i in range(len(result_x)):
-  if (result_dir_x[i] != y_dir[i]):
-    wrong += 1
+#wrong = 0
+#for i in range(len(result_x)):
+  #if (result_dir_x[i] != y_dir[i]):
+    #wrong += 1
 
-percentage = wrong / float(len(result_dir_x)) * 100
-print 'Train Direction Error: ', wrong, ' Out of ', len(result_dir_x),  ' Percentage: ', percentage
+#percentage = wrong / float(len(result_dir_x)) * 100
+#print 'Train Direction Error: ', wrong, ' Out of ', len(result_dir_x),  ' Percentage: ', percentage
 
 
-candlestick2_ohlc(axarr[0], recovered_result_x[:, 0], recovered_result_x[:, 1], recovered_result_x[:, 2], recovered_result_x[:, 3], width=1, colorup='g', colordown='r')
-recovered_y = np.exp(y[-100:, -1, :] * std_np[0:4] + mean_np[0:4])
-candlestick2_ohlc(axarr[1], recovered_y[:, 0], recovered_y[:, 1], recovered_y[:, 2], recovered_y[:, 3], width=1, colorup='g', colordown='r')
+#candlestick2_ohlc(axarr[0], recovered_result_x[:, 0], recovered_result_x[:, 1], recovered_result_x[:, 2], recovered_result_x[:, 3], width=1, colorup='g', colordown='r')
+#recovered_y = np.exp(y[-100:, -1, :] * std_np[0:4] + mean_np[0:4])
+#candlestick2_ohlc(axarr[1], recovered_y[:, 0], recovered_y[:, 1], recovered_y[:, 2], recovered_y[:, 3], width=1, colorup='g', colordown='r')
 plt.show()
 print 'All Done :D'

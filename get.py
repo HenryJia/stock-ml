@@ -30,6 +30,28 @@ def get(filename, m, n):
     #return numpy.matrix(output_array) # Convert into matrix
 
     return output_array_float
+  
+def get_all(filename):
+
+    file = open(filename)
+    reader = csv.reader(file)
+
+    output_array = []
+
+    for row in reader: # Create an array of the file
+        output_array.append(row)
+
+    output_array_float = []
+
+    for i in output_array:
+        line = []
+        for j in i:
+            line.append(float(j))
+        output_array_float.append(line)
+
+    #return np.array(output_array) # Convert into matrix
+
+    return output_array_float
 
 #print(concat('ARM_LD.txt', 3))  #TEST
     

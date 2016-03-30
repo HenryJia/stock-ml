@@ -24,7 +24,7 @@ def reformat(filename): # The main function
         for column in range(4,9): # For columns 5 to 9 inclusive
             line_to_write += str(data_array[row][column] + ',') # Add the value of this cell to the (temporary) line to be written
 
-        #print(line_to_write)
+        print(line_to_write)
         main_data.write(line_to_write[:-1] + '\n') # Wirte the 'line to write' to the main data file, but without the final comma ([:-1]) and with a line break ('\n')
         line_to_write = ''
 
