@@ -1,0 +1,21 @@
+### LSTM 4
+
+from fetch import *
+
+YOU = fetch_since('YOU.L', '2015-01-01')
+YOU = YOU[~np.any(YOU == 0, axis=1)]
+#YOU[:-1, :-1] *= 100
+last = YOU[-1, 3]
+data_YOU = YOU[1:, :] / YOU[:-1, :] - 1
+data_YOU = (data_YOU - mean) / std
+(model.predict(np.expand_dims(data_YOU[-200:], axis = 0))[-1, -1, -1] + 1) * last
+
+ADN 242.10859797224404   error UNKNOWN
+AV    441.48103110808876  error 0.030563965827971742
+RBS  229.13763713091612  error UNKNOWN
+II      438.910395288514      error UNKNOWN
+
+
+np.sqrt(model.evaluate(np.expand_dims(x_test[4], 0), np.expand_dims(y_test[4], 0), batch_size=batch_size, verbose=1))
+model.predict(np.expand_dims(data_BBA[-200:], axis = 0))
+

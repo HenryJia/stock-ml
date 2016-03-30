@@ -1,0 +1,18 @@
+from fetch import *
+
+YOU = fetch_since('YOU.L', '2015-01-01')
+#YOU[:-1, :-1] *= 100
+last = YOU[-1, 3]
+YOU = np.log(YOU[~np.any(YOU == 0, axis=1)])
+data_YOU = YOU[1:, :] / YOU[:-1, :] - 1
+data_YOU = (data_YOU - mean) / std
+last ** (model.predict(np.expand_dims(data_YOU[-200:], axis = 0))[-1, -1, -1] + 1)
+
+BB_A  204.35454260939395  209.22609352623112
+IUK_P 585.29670167940333  588.11156200151891
+J_D     1120.1045390171862  1129.9569690017961
+MONY 331.3133029583696    333.97593546309508
+YOU   133.88563019347765   134.58362171053886
+
+
+
