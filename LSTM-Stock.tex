@@ -152,13 +152,12 @@ LSTM layers are used to create a set of learned recurrent feature generators. A 
 
 \section{Weight Initialisations}
 
-The feed forward weights are initialised by sampling from the uniform distribution \cite{FFDiff}
+The feed forward weights are initialised by sampling from the uniform distribution \cite{FFDiff}.
 
 \[W \sim U \left[ -\frac{\sqrt{6}}{\sqrt{n_{in} + n_{out}}}, \frac{\sqrt{6}}{\sqrt{n_{in} + n_{out}}} \right] \]
 \\
-We initialised our recurrent weights by first sampling from Gaussian distribution with 0 mean and unit variance. Then we performed singular vale decomposition
 
-The recurrent weights are intialised by performing singular value decomposition on a 0 mean and unit variance Guassian distribution
+The recurrent weights are intialised by performing singular value decomposition on a 0 mean and unit variance Guassian distribution.
 
 \[W = U S V^T\]
 \\
@@ -174,17 +173,17 @@ Finally, the forget bias units are initialised to 1 and the other biases to 0.
 
 Google's daily stock data are used from January 1st 2005 to December 31st 2014 to create the training set and the stock data from January 1st 2015 to December 31st 2015 to create the test set. The data is obtained through the Yahoo finance API.
 
-The data used for network inputs include the open, high, low, close and volume, and the network targets are open, high, low, close. The data and targets are both normalised through converting them into returns via percentage change.
+The data used for network inputs include the open, high, low, close and volume, and the network targets are open, high, low, close of the next day. The data and targets are both normalised through converting them into returns via percentage change.
 
 \[ \hat{x_t} = \frac{x_t}{x_{t-1}} - 1 \]
 
-This scales the values to be much smaller as stocks typically move little data to day, and also bounds the magnitude of the data. This makes it easier for the network to learn
+This scales the values to be much smaller as stocks typically move little data to day, and also bounds the magnitude of the data. This makes it easier for the network to learn.
 
 \section{Training Methodology}
 
-First, the full sequence of 2005 to 2014 is reduced to a list of sequences of length 2 via sliding windows. This presents a much easier problem for the LSTM to solve, thus the LSTM is trained on it for 1 epoch. The length is then doubled to 4 and sliding windows are applied to reduce the full sequence to a list of sequences of length 4. Training is applied in the same analogous way. This is repeated up to and including sequences of length 256. For sequences of length 256, training is done for 100 epochs with the same batchsize to complete the training process.
+We improve the training process by adding in a pretrainign step as follows. First, the full sequence of 2005 to 2014 is reduced to a list of sequences of length 2 via sliding windows. This presents a much easier problem for the LSTM to solve, thus the LSTM is trained on it for 1 epoch. The length is then doubled to 4 and sliding windows are applied to reduce the full sequence to a list of sequences of length 4. Training is applied in the same analogous way. This is repeated up to and including sequences of length 256. For sequences of length 256, training is done for 100 epochs with the same batchsize to complete the training process.
 
-All training and pretraining are done using the ADAM optimiser with default parameters and learning rate. The batchsize was maintained at 20 sequences per batch\cite{ADAM}.
+All training are done using the ADAM optimiser with default parameters and learning rate. The batchsize was maintained at 20 sequences per batch\cite{ADAM}.
 
 \section{Experiments}
 
